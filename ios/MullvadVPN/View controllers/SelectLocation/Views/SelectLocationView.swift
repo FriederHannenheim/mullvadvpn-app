@@ -3,9 +3,12 @@ import SwiftUI
 
 struct SelectLocationView<ViewModel>: View where ViewModel: SelectLocationViewModel {
     @ObservedObject var viewModel: ViewModel
-
     @State private var headerIsExpandedForEntry: Bool = false
     @State private var headerIsExpandedForExit: Bool = false
+    @State private var disablingRecentConnectionsAlert: MullvadAlert?
+    @FocusState private var focusSearchField: Bool
+    @State private var headerHeight: CGFloat = 0
+
     private var headerIsExpanded: Bool {
         switch viewModel.multihopContext {
         case .entry:
@@ -15,13 +18,9 @@ struct SelectLocationView<ViewModel>: View where ViewModel: SelectLocationViewMo
         }
     }
 
-    @State private var headerHeight: CGFloat = 0
-
     private var showSearchField: Bool {
         return !viewModel.showDAITAInfo || viewModel.multihopContext == .exit
     }
-
-    @FocusState private var focusSearchField: Bool
 
     var body: some View {
         // Simply animating the MultihopSelectionView while scrolling leads to a slow
@@ -149,6 +148,7 @@ struct SelectLocationView<ViewModel>: View where ViewModel: SelectLocationViewMo
                             .foregroundStyle(Color.mullvadTextPrimary)
                         }
                         .accessibilityIdentifier(.selectLocationFilterButton)
+                        
                         Button {
                             viewModel.toggleMultihop()
                         } label: {
@@ -163,6 +163,33 @@ struct SelectLocationView<ViewModel>: View where ViewModel: SelectLocationViewMo
                             .foregroundStyle(Color.mullvadTextPrimary)
                         }
                         .accessibilityIdentifier(.toggleMultihopButton)
+
+                        Button {
+                            if viewModel.isRecentsEnabled {
+                                disablingRecentConnectionsAlert = MullvadAlert(
+                                    type: .warning,
+                                    messages: ["Disabling recents will also clear history."],
+                                    action: MullvadAlert.Action(
+                                        type: .danger,
+                                        title: "Disable",
+                                        identifier: .disableRecentConnectionsButton,
+                                        handler: {
+                                            viewModel.toggleRecents()
+                                            disablingRecentConnectionsAlert = nil
+                                        }), dismissButtonTitle: "Cancel")
+
+                            } else {
+                                viewModel.toggleRecents()
+                            }
+
+                        } label: {
+                            HStack {
+                                Image(systemName: "clock")
+                                Text("\(viewModel.isRecentsEnabled ? "Disable" : "Enable") recents")
+                            }
+                            .foregroundStyle(Color.mullvadTextPrimary)
+                        }
+                        .accessibilityIdentifier(.recentConnectionsToggleButton)
                     } label: {
                         Image(systemName: "ellipsis.circle.fill")
                             .foregroundStyle(Color.mullvadTextPrimary)
@@ -171,6 +198,7 @@ struct SelectLocationView<ViewModel>: View where ViewModel: SelectLocationViewMo
                 }
             )
         }
+        .mullvadAlert(item: $disablingRecentConnectionsAlert)
     }
 
     // Expands when the scroll view is at its top.
