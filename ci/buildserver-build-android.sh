@@ -14,6 +14,7 @@ BUILD_DIR="$SCRIPT_DIR/mullvadvpn-app"
 LAST_BUILT_DIR="$SCRIPT_DIR/last-built"
 UPLOAD_DIR="/home/upload/upload"
 ANDROID_CREDENTIALS_DIR="$SCRIPT_DIR/credentials-android"
+ANDROID_SCRIPTS_DIR="$BUILD_DIR/android/scripts/release"
 
 BRANCHES_TO_BUILD=("origin/main")
 TAG_PATTERN_TO_BUILD="^android/"
@@ -115,6 +116,11 @@ function build_ref {
     yes | rm -r "$artifact_dir"
 
     touch "$LAST_BUILT_DIR/$current_hash"
+
+    # Add this version to supported version if stable or beta
+    if [[ $version != *"-dev-"* && $version != *"-alpha"* ]]; then
+        ./"$ANDROID_SCRIPTS_DIR"/release --add-version version || return 1
+    fi
 
     echo ""
     echo "Successfully finished building $version at $(date)"

@@ -3240,10 +3240,8 @@ dependencies = [
  "clap",
  "mullvad-update",
  "mullvad-version",
- "reqwest",
  "serde",
  "serde_json",
- "strum",
  "tokio",
 ]
 

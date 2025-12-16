@@ -1,15 +1,16 @@
+use anyhow::Context;
+use http::StatusCode;
+use http::header;
+use mullvad_update::format::response::AndroidReleases;
+#[cfg(not(target_os = "android"))]
+use mullvad_update::format::response::SignedResponse;
+use mullvad_update::version::{Metadata, VersionInfo, is_version_supported_android};
+#[cfg(not(target_os = "android"))]
+use mullvad_update::version::{Rollout, VersionParameters, is_version_supported};
 use std::future::Future;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use http::StatusCode;
-use http::header;
-use mullvad_update::format::response::SignedResponse;
-use mullvad_update::version::{Rollout, VersionInfo, VersionParameters, is_version_supported};
-
-type AppVersion = String;
-
-use super::APP_URL_PREFIX;
 use super::rest;
 
 #[derive(Clone)]
@@ -85,7 +86,7 @@ impl AppVersionProxy {
             let params = VersionParameters {
                 architecture,
                 rollout,
-                // NOTE: On Linux and android, version metadata contains no installers
+                // NOTE: On Linux, version metadata contains no installers
                 allow_empty: cfg!(target_os = "linux"),
                 lowest_metadata_version,
             };
@@ -140,27 +141,34 @@ impl AppVersionProxy {
 
             let bytes = response.body_with_max_size(Self::SIZE_LIMIT).await?;
 
-            let response = SignedResponse::deserialize_and_verify(&bytes, lowest_metadata_version)
+            //let response = AndroidReleases::deserialize_and_verify(&bytes, lowest_metadata_version)
+            //    .map_err(|err| rest::Error::FetchVersions(Arc::new(err)))?;
+            let response: AndroidReleases = serde_json::from_slice(&bytes)
+                .context("Invalid version JSON")
                 .map_err(|err| rest::Error::FetchVersions(Arc::new(err)))?;
-
-            let params = VersionParameters {
-                architecture,
-                rollout,
-                // NOTE: On Linux and android, version metadata contains no installers
-                allow_empty: cfg!(target_os = "linux") || cfg!(target_os = "android"),
-                lowest_metadata_version,
-            };
 
             let current_version =
                 mullvad_version::Version::from_str(mullvad_version::VERSION).unwrap();
-            let current_version_supported = is_version_supported(current_version, &response.signed);
+            let current_version_supported =
+                is_version_supported_android(current_version, &response);
 
-            let metadata_version = response.signed.metadata_version;
+            let params = response
+                .releases
+                .iter()
+                .map(|release| Metadata {
+                    version: release.version.clone(),
+                    urls: vec![],
+                    size: 0,
+                    changelog: "".to_string(),
+                    sha256: [0; 32],
+                })
+                .collect::<Vec<_>>();
+
             Ok(Some(AppVersionResponse2 {
-                version_info: VersionInfo::try_from_response(&params, response.signed)
+                version_info: VersionInfo::try_from_metadata(params)
                     .map_err(Arc::new)
                     .map_err(rest::Error::FetchVersions)?,
-                metadata_version,
+                metadata_version: 0, // Not applicable on android
                 current_version_supported,
                 etag,
             }))
