@@ -32,6 +32,7 @@ class WgAdapter: TunnelAdapterProtocol, @unchecked Sendable {
     }
 
     func start(configuration: TunnelAdapterConfiguration, daita: DaitaConfiguration?) async throws {
+        try self.throwForTesting()
         let wgConfig = configuration.asWgConfig
         do {
             try await adapter.stop()
@@ -41,11 +42,21 @@ class WgAdapter: TunnelAdapterProtocol, @unchecked Sendable {
         }
     }
 
+    func throwForTesting() throws {
+        if Self.counter > 2 {
+            throw WireGuardAdapterError
+                .setNetworkSettings(NETunnelProviderError(NETunnelProviderError.networkSettingsInvalid))
+        }
+        Self.counter += 1
+    }
+
     func startMultihop(
         entryConfiguration: TunnelAdapterConfiguration? = nil,
         exitConfiguration: TunnelAdapterConfiguration,
         daita: DaitaConfiguration?
     ) async throws {
+        try self.throwForTesting()
+
         let exitConfiguration = exitConfiguration.asWgConfig
         let entryConfiguration = entryConfiguration?.asWgConfig
 
