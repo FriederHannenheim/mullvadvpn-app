@@ -14,24 +14,13 @@ cd "$SCRIPT_DIR"
 
 REPO_ROOT=../../../
 
-$REPO_ROOT/scripts/utils/commit-verification
-"$SCRIPT_DIR/verify-version-is-release"
-
-if [ $# -ne 3 ]; then
-    echo "Please provide the following arguments:"
-    echo "    $(basename "$0") \\"
-    echo "        <build server SSH destination> \\"
-    echo "        <metadata server SSH destination> \\"
-    echo "        <rollout (0-1)>"
-    echo ""
-    echo "Note that the metadata server SSH destination is part of the rsync command executed on the build server and will be checked against the SSH config of build@\$buildserver_host."
-    exit 1
-fi
+# $REPO_ROOT/scripts/utils/commit-verification
+# "$SCRIPT_DIR/verify-version-is-release"
 
 # The hostname (can be the alias in your ~/.ssh/config) of the build server
-BUILDSERVER_HOST=$2
+BUILDSERVER_HOST=$1
 # The server to upload the metadata to *from* the build server (argument above)
-METADATA_SERVER_HOST=$3
+METADATA_SERVER_HOST=$2
 
 # shellcheck source=android/scripts/release/release-config.sh
 source "$SCRIPT_DIR/release-config.sh"
@@ -63,15 +52,15 @@ function main {
         exit 1
     fi
 
-    case "$1" in
+    case "$3" in
     "-a"|"--add-release")
-        add_release
+        add_release $4
         ;;
     "-u"|"--update-latest")
         update_latest
         ;;
     "-r"|"--remove-release")
-        remove_release
+        remove_release $4
         ;;
     "-h"|"--help")
         print_usage
@@ -86,7 +75,7 @@ function main {
 }
 
 function add_release {
-    version=$3
+    version=$1
 
     local work_dir="$DATA_DIR/work/"
     local published_dir="$DATA_DIR/currently_published/"
@@ -127,12 +116,15 @@ function update_latest {
     rm -rf "$upload_dir"
 
     mkdir -p "$DATA_DIR"
+    mkdir -p "$published_dir" #Should not be required?
+    mkdir -p "$upload_dir" #Should not be required?
 
     log_header "Fetching current version metadata"
     $mullvad_release pull --assume-yes --latest-file
 
     log_header "Backing up released data"
     cp -r "$work_dir" "$published_dir"
+    cp -r "$DATA_DIR/$latest_filename" "$published_dir/$latest_filename"
 
     log_header "Generating $latest_filename for current version metadata"
     $mullvad_release query-latest > "$upload_dir/$latest_filename"
@@ -145,7 +137,7 @@ function update_latest {
 }
 
 function remove_release {
-    version=$3
+    version=$1
 
     local work_dir="$DATA_DIR/work/"
     local published_dir="$DATA_DIR/currently_published/"
@@ -163,12 +155,15 @@ function remove_release {
     log_header "Backing up released data"
     cp -r "$work_dir" "$published_dir"
 
-    log_header "Adding new release $version"
+    log_header "Removing new release $version"
     $mullvad_release remove-release "$version"
 
     log_header "New metadata without $version"
     git --no-pager diff --no-index -- "$published_dir" "$work_dir" || true
 
-    # read -rp "Press enter to upload if the diffs look good "
+    read -rp "Press enter to upload if the diffs look good "
     ./publish-metadata-to-api "$work_dir" "$BUILDSERVER_HOST" "$METADATA_SERVER_HOST"
 }
+
+# Run script
+main "$@"

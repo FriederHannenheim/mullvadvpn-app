@@ -3,7 +3,7 @@
 # Configuration variables shared between the release scripts in this directory.
 
 # Where the release scripts and programs store temporary data
-export DATA_DIR="$HOME/.local/share/mullvad-release"
+export DATA_DIR="$HOME/.local/share/mullvad-release-android"
 
 # Mullvad code signing key and fingerprint
 export MULLVAD_CODE_SIGNING_KEY_PATH="../../../ci/keys/1.mullvad_signing.pub"
