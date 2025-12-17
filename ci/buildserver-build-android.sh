@@ -119,7 +119,7 @@ function build_ref {
 
     # Add this version to supported version if stable or beta
     if [[ $version != *"-dev-"* && $version != *"-alpha"* ]]; then
-        ./"$ANDROID_SCRIPTS_DIR"/release --add-version version || return 1
+        ./"$ANDROID_SCRIPTS_DIR"/release app-build-linux3 cdn.mullvad.net --add-version version || return 1
     fi
 
     echo ""

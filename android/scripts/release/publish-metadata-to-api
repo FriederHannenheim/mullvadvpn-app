@@ -44,6 +44,10 @@ function local_rsync {
   rsync "${RSYNC_OPTIONS[@]}" "$@"
 }
 
+function buildserver_rsync {
+  run_on_build_server_as_build_user rsync "${METADATA_SERVER_RSYNC_OPTIONS[@]}" "$@"
+}
+
 function remove_buildserver_tmp_dir {
   run_on_build_server rm -rf $BUILDSERVER_TMP_DIR
 }
@@ -53,6 +57,9 @@ remove_buildserver_tmp_dir
 
 # Send the local metadata dir to the build server
 local_rsync "$LOCAL_METADATA_DIR" "$BUILD_SERVER_HOST":$BUILDSERVER_METADATA_DIR
+
+# Send the metadata on the buildserver to the cdn server
+buildserver_rsync $BUILDSERVER_METADATA_DIR "$METADATA_SERVER_HOST":"$(dirname "$METADATA_SERVER_METADATA_DIR")"
 
 # Remove intermediate tmp dir when done
 remove_buildserver_tmp_dir
